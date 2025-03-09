@@ -3,6 +3,7 @@ import numpy as np
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 
+from torch.utils.data import Dataset, DataLoader, random_split
 
 def plot_tsne(model, dataloader, device):
     '''
@@ -54,3 +55,4 @@ def plot_tsne(model, dataloader, device):
     plt.title('t-SNE of Image Space')
     plt.savefig('image_tsne.png')
     plt.close()
+
