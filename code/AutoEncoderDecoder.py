@@ -2,6 +2,29 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+class AutoEncoderCIFAR(nn.Module):
+    def __init__(self, latent_dim):
+        super().__init__()
+        self.encoder = torch.nn.Sequential(
+            torch.nn.Flatten(),
+            torch.nn.Linear(32*32*3, 128),
+            torch.nn.ReLU(),
+            torch.nn.Linear(128, latent_dim)
+        )
+        self.decoder = torch.nn.Sequential(
+            torch.nn.Linear(latent_dim, 128),
+            torch.nn.ReLU(),
+            torch.nn.Linear(128, 32*32*3),
+            torch.nn.Tanh()  # For reconstruction
+        )
+
+    def forward(self, x):
+        z = self.encoder(x)
+        x_reconstructed = self.decoder(z)
+        x_reconstructed = x_reconstructed.view(-1, 3, 32, 32)
+        return x_reconstructed, z
+
 class AutoEncoderMnist(nn.Module):
     def __init__(self, in_channels, latent_dim):
         super().__init__()
@@ -106,25 +129,5 @@ def train(encoder, decoder, epochs, dl_train, device):
         avg_train_loss = total_train_loss / num_train_samples
         print(f"Epoch [{epoch+1}/{epochs}], Loss: {avg_train_loss:.4f}")
 
-class AutoEncoderCIFAR(nn.Module):
-    def __init__(self, latent_dim):
-        super().__init__()
-        self.encoder = torch.nn.Sequential(
-            torch.nn.Flatten(),
-            torch.nn.Linear(32*32*3, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, latent_dim)
-        )
-        self.decoder = torch.nn.Sequential(
-            torch.nn.Linear(latent_dim, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, 32*32*3),
-            torch.nn.Tanh()  # For reconstruction
-        )
 
-    def forward(self, x):
-        z = self.encoder(x)
-        x_reconstructed = self.decoder(z)
-        x_reconstructed = x_reconstructed.view(-1, 3, 32, 32)
-        return x_reconstructed, z
 
