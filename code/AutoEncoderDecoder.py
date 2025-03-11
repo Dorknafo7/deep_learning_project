@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class EncoderCIFAR(torch.nn.Module):
+class EncoderCIFAR(nn.Module):
     def __init__(self, latent_dim):
         super().__init__()
         self.encoder = torch.nn.Sequential(
