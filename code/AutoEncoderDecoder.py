@@ -3,6 +3,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+class EncoderCIFAR(torch.nn.Module):
+    def __init__(self, latent_dim):
+        super().__init__()
+        self.encoder = torch.nn.Sequential(
+            torch.nn.Flatten(),
+            torch.nn.Linear(32 * 32 * 3, 128),
+            torch.nn.ReLU(),
+            torch.nn.Linear(128, latent_dim)
+        )
+
+    def forward(self, x):
+        return self.encoder(x)
+
 class AutoEncoderCIFAR(nn.Module):
     def __init__(self, latent_dim):
         super().__init__()
