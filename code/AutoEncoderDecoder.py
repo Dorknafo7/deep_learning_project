@@ -5,12 +5,32 @@ import torch.nn.functional as F
 
 class EncoderCIFAR(nn.Module):
     def __init__(self, latent_dim):
-        super().__init__()
-        self.encoder = torch.nn.Sequential(
-            torch.nn.Flatten(),
-            torch.nn.Linear(32 * 32 * 3, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, latent_dim)
+        super().__init__()   
+        self.encoder = nn.Sequential(
+            # First convolutional block
+            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),  # Conv layer
+            nn.ReLU(),
+            nn.BatchNorm2d(32),  # Batch Normalization
+            nn.MaxPool2d(kernel_size=2, stride=2),  # Pooling
+            
+            # Second convolutional block
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            
+            # Third convolutional block
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            
+            # Fully connected layer to the latent space
+            nn.Flatten(),
+            nn.Linear(128 * 4 * 4, 512),  # Flattening the output and feeding it into a dense layer
+            nn.ReLU(),
+            nn.Dropout(0.5),  # Dropout layer for regularization
+            nn.Linear(512, latent_dim)  # Final layer that projects to latent space
         )
 
     def forward(self, x):
