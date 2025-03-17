@@ -8,10 +8,10 @@ class EncoderCIFAR(nn.Module):
         super().__init__()   
         self.encoder = nn.Sequential(
             # First convolutional block
-            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),  # Conv layer
+            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1), 
             nn.ReLU(),
-            nn.BatchNorm2d(32),  # Batch Normalization
-            nn.MaxPool2d(kernel_size=2, stride=2),  # Pooling
+            nn.BatchNorm2d(32), 
+            nn.MaxPool2d(kernel_size=2, stride=2), 
             
             # Second convolutional block
             nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
@@ -27,15 +27,44 @@ class EncoderCIFAR(nn.Module):
             
             # Fully connected layer to the latent space
             nn.Flatten(),
-            nn.Linear(128 * 4 * 4, 512),  # Flattening the output and feeding it into a dense layer
+            nn.Linear(128 * 4 * 4, 512),  
             nn.ReLU(),
-            nn.Dropout(0.5),  # Dropout layer for regularization
-            nn.Linear(512, latent_dim)  # Final layer that projects to latent space
+            nn.Dropout(0.5), 
+            nn.Linear(512, latent_dim) 
         )
 
     def forward(self, x):
         return self.encoder(x)
 
+class DecoderCIFAR(nn.Module):
+    def __init__(self, latent_dim):
+        super().__init__()
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_dim, 512),
+            nn.ReLU(),
+            nn.Linear(512, 128 * 4 * 4),
+            nn.ReLU(),
+            nn.Unflatten(1, (128, 4, 4)),
+            
+            # First 
+            nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            
+            # Second
+            nn.ConvTranspose2d(64, 32, kernel_size=2, stride=2),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            
+            # Third 
+            nn.ConvTranspose2d(32, 3, kernel_size=2, stride=2),
+            nn.Sigmoid()  
+        )
+    
+    def forward(self, x):
+        return self.decoder(x)
+    
+    
 class AutoEncoderCIFAR(nn.Module):
     def __init__(self, latent_dim):
         super().__init__()
