@@ -2,91 +2,81 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 class EncoderCIFAR(nn.Module):
-    def __init__(self, latent_dim):
-        super().__init__()   
-        self.encoder = nn.Sequential(
-            # First convolutional block
-            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1), 
-            nn.ReLU(),
-            nn.BatchNorm2d(32), 
-            nn.MaxPool2d(kernel_size=2, stride=2), 
-            
-            # Second convolutional block
-            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm2d(64),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            # Third convolutional block
-            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-            nn.ReLU(),
-            nn.BatchNorm2d(128),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            # Fully connected layer to the latent space
-            nn.Flatten(),
-            nn.Linear(128 * 4 * 4, 512),  
-            nn.ReLU(),
-            nn.Dropout(0.5), 
-            nn.Linear(512, latent_dim) 
-        )
-
-    def forward(self, x):
-        return self.encoder(x)
-
-class DecoderCIFAR(nn.Module):
-    def __init__(self, latent_dim):
+    def __init__(self, in_channels, latent_dim):
         super().__init__()
-        self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, 512),
-            nn.ReLU(),
-            nn.Linear(512, 128 * 4 * 4),
-            nn.ReLU(),
-            nn.Unflatten(1, (128, 4, 4)),
-            
-            # First 
-            nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2),
-            nn.BatchNorm2d(64),
-            nn.ReLU(),
-            
-            # Second
-            nn.ConvTranspose2d(64, 32, kernel_size=2, stride=2),
+
+        self.cnn = nn.Sequential(
+            nn.Conv2d(in_channels, 32, kernel_size=5, stride=2, padding=2), 
             nn.BatchNorm2d(32),
             nn.ReLU(),
-            
-            # Third 
-            nn.ConvTranspose2d(32, 3, kernel_size=2, stride=2),
-            nn.Sigmoid()  
+            nn.Conv2d(32, 64, kernel_size=5, stride=2, padding=2),           
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2),       
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
         )
-    
+        self.flattened_size = 128 * 4 * 4  
+        self.fc1 = nn.Linear(self.flattened_size, latent_dim)
+
     def forward(self, x):
-        return self.decoder(x)
-    
-    
-class AutoEncoderCIFAR(nn.Module):
-    def __init__(self, latent_dim):
+        x = self.cnn(x)
+        x = x.view(x.shape[0], -1)  
+        x = self.fc1(x)
+        return x
+class DecoderCIFAR(nn.Module):
+    def __init__(self, latent_dim, out_channels):
         super().__init__()
-        self.encoder = torch.nn.Sequential(
-            torch.nn.Flatten(),
-            torch.nn.Linear(32*32*3, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, latent_dim)
+
+        self.decoder = nn.Sequential(
+            nn.Linear(latent_dim, 128 * 4 * 4),  
+            nn.ReLU(),
+            nn.Unflatten(1, (128, 4, 4)),          
+
+            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+
+            nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+
+            nn.ConvTranspose2d(32, out_channels, kernel_size=4, stride=2, padding=1),
+            nn.Tanh()  
         )
-        self.decoder = torch.nn.Sequential(
-            torch.nn.Linear(latent_dim, 128),
-            torch.nn.ReLU(),
-            torch.nn.Linear(128, 32*32*3),
-            torch.nn.Tanh()  # For reconstruction
-        )
+
+    def forward(self, h):
+        x = self.decoder(h)
+        return x
+    
+class ClassifierCIFAR(torch.nn.Module):
+    def __init__(self, latent_dim, num_classes):
+        super(ClassifierCIFAR, self).__init__()
+
+        # Define the layers
+        self.fc1 = torch.nn.Linear(latent_dim, 512)
+        self.relu1 = torch.nn.ReLU()
+        self.bn1 = torch.nn.BatchNorm1d(512)  # Batch normalization after the first hidden layer
+        self.drop1 = torch.nn.Dropout(0.5)  # Dropout layer to prevent overfitting
+
+        self.fc2 = torch.nn.Linear(512, 256)
+        self.relu2 = torch.nn.ReLU()
+        self.bn2 = torch.nn.BatchNorm1d(256)
+        self.drop2 = torch.nn.Dropout(0.5)
+
+        self.fc3 = torch.nn.Linear(256, num_classes)  # Final output layer (classification)
 
     def forward(self, x):
-        z = self.encoder(x)
-        x_reconstructed = self.decoder(z)
-        x_reconstructed = x_reconstructed.view(-1, 3, 32, 32)
-        return x_reconstructed, z
-
+        x = self.relu1(self.bn1(self.fc1(x)))  # Apply fc1 + ReLU + BatchNorm
+        x = self.drop1(x)  # Apply dropout
+        
+        x = self.relu2(self.bn2(self.fc2(x)))  # Apply fc2 + ReLU + BatchNorm
+        x = self.drop2(x)  # Apply dropout
+        
+        x = self.fc3(x)  # Final classification layer (logits)
+        return x
+    
 class AutoEncoderMnist(nn.Module):
     def __init__(self, in_channels, latent_dim):
         super().__init__()

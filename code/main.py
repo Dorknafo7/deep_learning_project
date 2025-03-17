@@ -40,8 +40,8 @@ if __name__ == "__main__":
     freeze_seeds(args.seed)
                                       
     # if args.mnist:
-        train_dataset = datasets.MNIST(root=args.data_path, train=True, download=False, transform=transform)
-        test_dataset = datasets.MNIST(root=args.data_path, train=False, download=False, transform=transform)
+       # train_dataset = datasets.MNIST(root=args.data_path, train=True, download=False, transform=transform)
+        #test_dataset = datasets.MNIST(root=args.data_path, train=False, download=False, transform=transform)
     # else:
     #     train_dataset = datasets.CIFAR10(root=args.data_path, train=True, download=True, transform=transform)
     #     test_dataset = datasets.CIFAR10(root=args.data_path, train=False, download=True, transform=transform)
