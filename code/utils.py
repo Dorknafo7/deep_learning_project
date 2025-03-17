@@ -1,9 +1,8 @@
 import torch
 import numpy as np
 from sklearn.manifold import TSNE
-import matplotlib.pyplot as plt
-
 from torch.utils.data import Dataset, DataLoader, random_split
+import matplotlib.pyplot as plt
 
 def plot_tsne(model, dataloader, device):
     '''
