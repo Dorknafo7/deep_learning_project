@@ -2,6 +2,62 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+class EncoderCIFAR(nn.Module):
+    def __init__(self, latent_dim):
+        super().__init__()   
+        self.encoder = nn.Sequential(
+            # First convolutional block
+            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),  # Conv layer
+            nn.ReLU(),
+            nn.BatchNorm2d(32),  # Batch Normalization
+            nn.MaxPool2d(kernel_size=2, stride=2),  # Pooling
+            
+            # Second convolutional block
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(64),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            
+            # Third convolutional block
+            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
+            nn.ReLU(),
+            nn.BatchNorm2d(128),
+            nn.MaxPool2d(kernel_size=2, stride=2),
+            
+            # Fully connected layer to the latent space
+            nn.Flatten(),
+            nn.Linear(128 * 4 * 4, 512),  # Flattening the output and feeding it into a dense layer
+            nn.ReLU(),
+            nn.Dropout(0.5),  # Dropout layer for regularization
+            nn.Linear(512, latent_dim)  # Final layer that projects to latent space
+        )
+
+    def forward(self, x):
+        return self.encoder(x)
+
+class AutoEncoderCIFAR(nn.Module):
+    def __init__(self, latent_dim):
+        super().__init__()
+        self.encoder = torch.nn.Sequential(
+            torch.nn.Flatten(),
+            torch.nn.Linear(32*32*3, 128),
+            torch.nn.ReLU(),
+            torch.nn.Linear(128, latent_dim)
+        )
+        self.decoder = torch.nn.Sequential(
+            torch.nn.Linear(latent_dim, 128),
+            torch.nn.ReLU(),
+            torch.nn.Linear(128, 32*32*3),
+            torch.nn.Tanh()  # For reconstruction
+        )
+
+    def forward(self, x):
+        z = self.encoder(x)
+        x_reconstructed = self.decoder(z)
+        x_reconstructed = x_reconstructed.view(-1, 3, 32, 32)
+        return x_reconstructed, z
+
 class AutoEncoderMnist(nn.Module):
     def __init__(self, in_channels, latent_dim):
         super().__init__()
