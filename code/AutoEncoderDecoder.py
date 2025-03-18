@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.transforms as T
+from torchvision import  transforms
+import torchvision.transforms.functional as TF
+
 
 class EncoderCIFAR(nn.Module):
     def __init__(self, in_channels, latent_dim):
@@ -76,6 +80,9 @@ class ClassifierCIFAR(torch.nn.Module):
         
         x = self.fc3(x)  # Final classification layer (logits)
         return x
+    
+    
+    ##################### MNIST #####################
     
 class AutoEncoderMnist(nn.Module):
     def __init__(self, in_channels, latent_dim):
@@ -435,6 +442,10 @@ class NTXentLoss(nn.Module):
         
         # Mask out the diagonal (same image pairs)
         batch_size = z_i.size(0)
+        #debug:
+        if batch_size < 2:
+            raise ValueError("Batch size must be at least 2 for contrastive loss.")
+        
         mask = torch.eye(batch_size * 2).bool().to(z_i.device)
         similarity_matrix = similarity_matrix.masked_fill(mask, -float('inf'))
         
@@ -482,4 +493,35 @@ def trainEncoder123(model, epochs, dl_train, device):
             total_loss += loss.item()
 
         print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss / len(dl_train)}")
+    
+def train_encoder_cifar(model, projection_head, epochs, dl_train, device):
+    print("Training 1.2.3 contrastive encoder for CIFAR")
+    optimizer = torch.optim.Adam(list(model.parameters()) + list(projection_head.parameters()), lr=1e-3)
+    criterion = NTXentLoss(temperature=0.5)
+    # Training loop
+    for epoch in range(epochs):
+        model.train()
+        projection_head.train()
+        total_loss = 0.0
 
+        for images, _ in dl_train:
+            images = images.to(device)
+            
+            x_i = images
+            x_j = torch.flip(x_i, dims=[3])
+            x_i, x_j = x_i.to(device), x_j.to(device)
+
+            # Encode images
+            z_i = model(x_i)
+            z_j = model(x_j)
+        
+            # Compute contrastive loss
+            loss = criterion(z_i, z_j)
+            
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
+
+        print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss / len(dl_train)}")
