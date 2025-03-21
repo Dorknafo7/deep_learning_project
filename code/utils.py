@@ -4,7 +4,7 @@ from sklearn.manifold import TSNE
 from torch.utils.data import Dataset, DataLoader, random_split
 import matplotlib.pyplot as plt
 
-def plot_tsne(model, dataloader, device):
+def plot_tsne(model, dataloader, device, output_file_suffix):
     '''
     model - torch.nn.Module subclass. This is your encoder model
     dataloader - test dataloader to over over data for which you wish to compute projections
@@ -40,7 +40,7 @@ def plot_tsne(model, dataloader, device):
     scatter = plt.scatter(latent_tsne[:, 0], latent_tsne[:, 1], c=labels, cmap='tab10', s=10)  # Smaller points
     plt.colorbar(scatter)
     plt.title('t-SNE of Latent Space')
-    plt.savefig('latent_tsne.png')
+    plt.savefig(f'latent_tsne_{output_file_suffix}.png')
     plt.close()
     
     #plot image domain tsne
@@ -52,6 +52,6 @@ def plot_tsne(model, dataloader, device):
     scatter = plt.scatter(image_tsne[:, 0], image_tsne[:, 1], c=labels, cmap='tab10', s=10)  
     plt.colorbar(scatter)
     plt.title('t-SNE of Image Space')
-    plt.savefig('image_tsne.png')
+    plt.savefig(f'image_tsne_{output_file_suffix}.png')
     plt.close()
 
