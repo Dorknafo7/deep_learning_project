@@ -122,7 +122,7 @@ def plot_images_with_labels(images, true_labels, predicted_labels, class_names, 
     plt.show()   
 ##################### MNIST 1_2_1 #####################
     
-class AutoEncoderMnist(nn.Module):
+class EncoderMnist(nn.Module):
     def __init__(self, in_channels, latent_dim):
         super().__init__()
 
@@ -157,6 +157,7 @@ class AutoEncoderMnist(nn.Module):
         x = self.fc1(x)
         return x
 
+
 class AutoDecoderMnist(nn.Module):
     def __init__(self, latent_dim, out_channels):
         super().__init__()
@@ -182,8 +183,8 @@ class AutoDecoderMnist(nn.Module):
 def reconstruction_loss(x, x_rec):
     return F.l1_loss(x_rec, x)  # Using L1 loss for Mean Absolute Error (MAE)
 
-def trainEncoder(encoder, decoder, epochs, dl_train, dl_val, device):
-    print("Train AutoEncoder")
+def trainEncoderMNIST(encoder, decoder, epochs, dl_train, dl_val, device):
+    print("Train Encoder")
     # Optimizer
     optimizer = torch.optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=0.01)
     
@@ -248,16 +249,17 @@ def trainEncoder(encoder, decoder, epochs, dl_train, dl_val, device):
         encoder.train()
         decoder.train()
 
+
 class Classifier(nn.Module):
     def __init__(self, latent_dim=128):
-        super(Classifier, self).__init__()
+        super(ClassifierMNIST, self).__init__()
         # A simple fully connected layer to classify
         self.fc = nn.Linear(latent_dim, 10)  # 10 classes for MNIST
 
     def forward(self, x):
         return self.fc(x)
 
-def trainClassifier(encoder, classifier, epochs, dl_train, dl_val, device):
+def trainClassifierMNIST(encoder, classifier, epochs, dl_train, dl_val, device):
     print("Train Classifier")
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
@@ -314,7 +316,7 @@ def trainClassifier(encoder, classifier, epochs, dl_train, dl_val, device):
             f"Validation Loss: {val_loss/len(dl_val):.4f}, "
             f"Validation Accuracy: {100 * val_correct/val_total:.2f}%")
 
-def evaluateClassifier(encoder, classifier, dl_test, device):
+def evaluateClassifierMNIST(encoder, classifier, dl_test, device):
     print("Evaluate Classifier")
     criterion = nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
@@ -342,9 +344,9 @@ def evaluateClassifier(encoder, classifier, dl_test, device):
 
 ####################### MNIST 1_2_2 #######################
 
-class ClassifierModel_122(nn.Module):
+class ClassifierMNIST122(nn.Module):
     def __init__(self, encoder, classifier):
-        super(ClassifierModel_122, self).__init__()
+        super(ClassifierMNIST122, self).__init__()
         self.encoder = encoder  # Encoder (AutoEncoder part)
         self.classifier = classifier  # Classifier (FC layer to classify the latent vector)
 
@@ -353,7 +355,7 @@ class ClassifierModel_122(nn.Module):
         output = self.classifier(latent_vector)  # Classify based on the latent vector
         return output
 
-def trainClassifier122(model, epochs, dl_train, dl_val, device):
+def trainClassifierMNIST122(model, epochs, dl_train, dl_val, device):
     print("Train Encoder + Classifier")
     criterion = nn.CrossEntropyLoss()  # Cross-entropy loss for classification
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)  # Adam optimizer for both encoder and classifier
@@ -412,7 +414,7 @@ def trainClassifier122(model, epochs, dl_train, dl_val, device):
               f"Validation Accuracy: {100 * val_correct/val_total:.2f}%")
 
 
-def evaluateClassifier122(model, dl_test, device):
+def evaluateClassifierMNIST122(model, dl_test, device):
     model.eval()  # Set model to evaluation mode
     criterion = nn.CrossEntropyLoss()  # Cross-entropy loss for classification
 
@@ -495,7 +497,7 @@ class NTXentLoss(nn.Module):
         return loss
 
 
-def trainEncoder123(model, epochs, dl_train, device):
+def trainEncoderMNIST123(model, epochs, dl_train, device):
     print("trainEncoder123")
     # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
