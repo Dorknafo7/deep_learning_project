@@ -4,7 +4,10 @@ import torch.nn.functional as F
 import torchvision.transforms as T
 from torchvision import  transforms
 import torchvision.transforms.functional as TF
+import numpy as np
+from matplotlib import pyplot as plt
 
+##################### CIFAR 1_2_1 #####################
 
 class EncoderCIFAR(nn.Module):
     def __init__(self, in_channels, latent_dim):
@@ -53,7 +56,6 @@ class DecoderCIFAR(nn.Module):
     def forward(self, h):
         x = self.decoder(h)
         return x
-    
 class ClassifierCIFAR(torch.nn.Module):
     def __init__(self, latent_dim, num_classes):
         super(ClassifierCIFAR, self).__init__()
@@ -61,28 +63,64 @@ class ClassifierCIFAR(torch.nn.Module):
         # Define the layers
         self.fc1 = torch.nn.Linear(latent_dim, 512)
         self.relu1 = torch.nn.ReLU()
-        self.bn1 = torch.nn.BatchNorm1d(512)  # Batch normalization after the first hidden layer
-        self.drop1 = torch.nn.Dropout(0.5)  # Dropout layer to prevent overfitting
+        self.bn1 = torch.nn.BatchNorm1d(512)  
+        self.drop1 = torch.nn.Dropout(0.5)  
 
         self.fc2 = torch.nn.Linear(512, 256)
         self.relu2 = torch.nn.ReLU()
         self.bn2 = torch.nn.BatchNorm1d(256)
         self.drop2 = torch.nn.Dropout(0.5)
 
-        self.fc3 = torch.nn.Linear(256, num_classes)  # Final output layer (classification)
+        self.fc3 = torch.nn.Linear(256, num_classes) 
 
     def forward(self, x):
-        x = self.relu1(self.bn1(self.fc1(x)))  # Apply fc1 + ReLU + BatchNorm
-        x = self.drop1(x)  # Apply dropout
+        x = self.relu1(self.bn1(self.fc1(x)))  
+        x = self.drop1(x)
         
-        x = self.relu2(self.bn2(self.fc2(x)))  # Apply fc2 + ReLU + BatchNorm
-        x = self.drop2(x)  # Apply dropout
+        x = self.relu2(self.bn2(self.fc2(x)))  
+        x = self.drop2(x)  
         
-        x = self.fc3(x)  # Final classification layer (logits)
+        x = self.fc3(x) 
         return x
+def rescale_image(image):
+    return np.clip((image + 1) / 2, 0, 1)  # Rescale from [-1, 1] to [0, 1]
+def plot_reconstruction(original, reconstructed, num_images=5):
+    original = original.cpu().detach().numpy()
+    reconstructed = reconstructed.cpu().detach().numpy()
     
+    # Rescale images to [0, 1] range for visualization
+    original = rescale_image(original)
+    reconstructed = rescale_image(reconstructed)
+    num_images = min(num_images, original.shape[0])  # Ensure we don't exceed batch size
+    fig, axes = plt.subplots(num_images, 2, figsize=(10, 20))
+
+    for i in range(num_images):
+        ax = axes[i, 0]
+        ax.imshow(np.transpose(original[i], (1, 2, 0)))  # Reorder dimensions to (H, W, C)
+        ax.set_title('Original')
+        ax.axis('off')
+
+        ax = axes[i, 1]
+        ax.imshow(np.transpose(reconstructed[i], (1, 2, 0)))
+        ax.set_title('Reconstructed')
+        ax.axis('off')
+
+    plt.show()
+def plot_images_with_labels(images, true_labels, predicted_labels, class_names, num_images=10):
+    images = images.cpu().detach().numpy()  
+    true_labels = true_labels.cpu().detach().numpy()  
+    predicted_labels = predicted_labels.cpu().detach().numpy()  
     
-    ##################### MNIST #####################
+    num_images = min(num_images, images.shape[0]) 
+    fig, axes = plt.subplots(1, num_images, figsize=(15, 3))
+
+    for i in range(num_images):
+        ax = axes[i]
+        ax.imshow(np.transpose(images[i], (1, 2, 0)))  # Reorder to (H, W, C)
+        ax.set_title(f"True: {class_names[true_labels[i]]}\nPred: {class_names[predicted_labels[i]]}")
+        ax.axis('off')  
+    plt.show()   
+##################### MNIST 1_2_1 #####################
     
 class EncoderMnist(nn.Module):
     def __init__(self, in_channels, latent_dim):
@@ -107,7 +145,7 @@ class EncoderMnist(nn.Module):
         return x
 
 
-class DecoderMnist(nn.Module):
+class AutoDecoderMnist(nn.Module):
     def __init__(self, latent_dim, out_channels):
         super().__init__()
 
@@ -129,7 +167,6 @@ class DecoderMnist(nn.Module):
         x = self.fc_layers(h)
         x = x.view(-1, self.out_channels, 28, 28)  # Reshape to the image shape
         return x
-
 
 def reconstruction_loss(x, x_rec):
     return F.l1_loss(x_rec, x)  # Using L1 loss for Mean Absolute Error (MAE)
@@ -202,7 +239,7 @@ def trainEncoderMNIST(encoder, decoder, epochs, dl_train, dl_val, device):
         decoder.train()
 
 
-class ClassifierMNIST(nn.Module):
+class Classifier(nn.Module):
     def __init__(self, latent_dim=128):
         super(ClassifierMNIST, self).__init__()
         # A simple fully connected layer to classify
@@ -294,7 +331,7 @@ def evaluateClassifierMNIST(encoder, classifier, dl_test, device):
         f"Test Accuracy: {100 * test_correct/test_total:.2f}%")
 
 
-####################### Section 1_2_2 #######################
+####################### MNIST 1_2_2 #######################
 
 class ClassifierMNIST122(nn.Module):
     def __init__(self, encoder, classifier):
@@ -514,3 +551,35 @@ def train_encoder_cifar(model, projection_head, epochs, dl_train, device):
             total_loss += loss.item()
 
         print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss / len(dl_train)}")
+
+def test_encoder_cifar(model, projection_head, dl_test, device):
+    print("Testing 1.2.3 contrastive encoder for CIFAR")
+    model.eval()  # Set the model to evaluation mode
+    projection_head.eval()  # Set the projection head to evaluation mode
+
+    total_loss = 0.0
+    correct = 0
+    total = 0
+
+    criterion = NTXentLoss(temperature=0.5)
+
+    with torch.no_grad():  # Disable gradient calculation
+        for images, _ in dl_test:
+            images = images.to(device)
+
+            # Create augmented views (positive pairs)
+            x_i = images
+            x_j = torch.flip(x_i, dims=[3])  # Flip as another augmentation
+
+            # Forward pass: encode images
+            z_i = model(x_i)
+            z_j = model(x_j)
+
+            # Compute contrastive loss
+            loss = criterion(z_i, z_j)
+
+            total_loss += loss.item()
+
+    # Calculate average loss and accuracy
+    avg_loss = total_loss / len(dl_test)
+    print(f"Test Loss: {avg_loss:.4f}")
