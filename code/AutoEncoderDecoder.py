@@ -88,35 +88,22 @@ class EncoderMnist(nn.Module):
     def __init__(self, in_channels, latent_dim):
         super().__init__()
 
-        self.cnn = nn.Sequential(
-            nn.Conv2d(in_channels, 32, kernel_size=5, stride=2, padding=2),
-            nn.BatchNorm2d(32),
+        self.flattened_size = in_channels * 28 * 28  # MNIST images are 28x28
+        
+        # Increase the hidden layer sizes to improve the model's capacity
+        self.fc_layers = nn.Sequential(
+            nn.Linear(self.flattened_size, 2048),  # Increased size
             nn.ReLU(),
-            nn.Conv2d(32, 64, kernel_size=5, stride=2, padding=2),
-            nn.BatchNorm2d(64),
+            nn.Linear(2048, 1024),  # Increased size
             nn.ReLU(),
-            nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2),
-            nn.BatchNorm2d(128),
+            nn.Linear(1024, 512),  # Keep this size for intermediate processing
             nn.ReLU(),
+            nn.Linear(512, latent_dim)  # Latent space remains the same
         )
 
-        # Calculate the output size after convolutions
-        # input size is 28x28x1 (MNIST grayscale)
-        self.flattened_size = self._get_flattened_size(in_channels)
-
-        # Fully connected layer (latent space)
-        self.fc1 = nn.Linear(self.flattened_size, latent_dim)
-
-    def _get_flattened_size(self, in_channels):
-        # Create a dummy tensor to calculate the output size after convolutions
-        dummy_input = torch.zeros(1, in_channels, 28, 28)
-        dummy_output = self.cnn(dummy_input)
-        return int(torch.prod(torch.tensor(dummy_output.shape[1:])))
-
     def forward(self, x):
-        x = self.cnn(x)
-        x = x.view(x.shape[0], -1)  # Flatten the output while preserving batch size
-        x = self.fc1(x)
+        x = x.view(x.shape[0], -1)  # Flatten the input
+        x = self.fc_layers(x)
         return x
 
 
@@ -124,22 +111,23 @@ class DecoderMnist(nn.Module):
     def __init__(self, latent_dim, out_channels):
         super().__init__()
 
-        self.decoder = nn.Sequential(
-            nn.Linear(latent_dim, 128 * 4 * 4),  # Latent vector to image features
+        self.out_channels = out_channels
+
+        # Increase the hidden layer sizes to match the encoder complexity
+        self.fc_layers = nn.Sequential(
+            nn.Linear(latent_dim, 512),  # Latent to intermediate size
             nn.ReLU(),
-            nn.Unflatten(1, (128, 4, 4)),  # Reshape to 128 channels, 3x3 feature maps
-            nn.ConvTranspose2d(128, 64, kernel_size=5, stride=2, padding=2, output_padding=0),
-            nn.BatchNorm2d(64),
+            nn.Linear(512, 1024),  # Increased size
             nn.ReLU(),
-            nn.ConvTranspose2d(64, 32, kernel_size=5, stride=2, padding=2, output_padding=1),
-            nn.BatchNorm2d(32),
+            nn.Linear(1024, 2048),  # Increased size
             nn.ReLU(),
-            nn.ConvTranspose2d(32, out_channels, kernel_size=4, stride=2, padding=1, output_padding=0),
-            nn.Tanh()  # Scale output to [-1, 1]
+            nn.Linear(2048, out_channels * 28 * 28),  # Output image size (28x28x1 or 28x28x3)
+            nn.Tanh()
         )
 
     def forward(self, h):
-        x = self.decoder(h)
+        x = self.fc_layers(h)
+        x = x.view(-1, self.out_channels, 28, 28)  # Reshape to the image shape
         return x
 
 
@@ -149,7 +137,7 @@ def reconstruction_loss(x, x_rec):
 def trainEncoderMNIST(encoder, decoder, epochs, dl_train, dl_val, device):
     print("Train Encoder")
     # Optimizer
-    optimizer = torch.optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=0.01)
+    optimizer = torch.optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=0.0001)
     
     for epoch in range(epochs):
         total_train_loss = 0.0
@@ -161,7 +149,8 @@ def trainEncoderMNIST(encoder, decoder, epochs, dl_train, dl_val, device):
         # Iterate over training data
         for images, _ in dl_train:
             images = images.to(device)  # Move to GPU if available
-            
+            batch_size = images.size(0)
+
             optimizer.zero_grad()  # Zero the gradients
 
             # Forward pass: Encode and then Decode
@@ -171,7 +160,7 @@ def trainEncoderMNIST(encoder, decoder, epochs, dl_train, dl_val, device):
             # Calculate the reconstruction loss
             loss = reconstruction_loss(images, decoded)  # MSE loss between reconstructed and original images
             total_train_loss += loss.item()
-            num_train_samples += images.size(0)  # Count number of samples in this batch
+            num_train_samples += batch_size  # Count number of samples in this batch
 
             # Backpropagation
             loss.backward()
