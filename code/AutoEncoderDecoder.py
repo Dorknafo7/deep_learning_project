@@ -32,6 +32,7 @@ class EncoderCIFAR(nn.Module):
         x = x.view(x.shape[0], -1)  
         x = self.fc1(x)
         return x
+
 class DecoderCIFAR(nn.Module):
     def __init__(self, latent_dim, out_channels):
         super().__init__()
@@ -56,6 +57,7 @@ class DecoderCIFAR(nn.Module):
     def forward(self, h):
         x = self.decoder(h)
         return x
+
 class ClassifierCIFAR(torch.nn.Module):
     def __init__(self, latent_dim, num_classes):
         super(ClassifierCIFAR, self).__init__()
@@ -82,8 +84,10 @@ class ClassifierCIFAR(torch.nn.Module):
         
         x = self.fc3(x) 
         return x
+
 def rescale_image(image):
     return np.clip((image + 1) / 2, 0, 1)  # Rescale from [-1, 1] to [0, 1]
+
 def plot_reconstruction(original, reconstructed, num_images=5):
     original = original.cpu().detach().numpy()
     reconstructed = reconstructed.cpu().detach().numpy()
@@ -106,6 +110,7 @@ def plot_reconstruction(original, reconstructed, num_images=5):
         ax.axis('off')
 
     plt.show()
+
 def plot_images_with_labels(images, true_labels, predicted_labels, class_names, num_images=10):
     images = images.cpu().detach().numpy()  
     true_labels = true_labels.cpu().detach().numpy()  
@@ -120,6 +125,7 @@ def plot_images_with_labels(images, true_labels, predicted_labels, class_names, 
         ax.set_title(f"True: {class_names[true_labels[i]]}\nPred: {class_names[predicted_labels[i]]}")
         ax.axis('off')  
     plt.show()   
+
 ##################### MNIST 1_2_1 #####################
     
 class EncoderMnist(nn.Module):
@@ -145,7 +151,7 @@ class EncoderMnist(nn.Module):
         return x
 
 
-class AutoDecoderMnist(nn.Module):
+class DecoderMnist(nn.Module):
     def __init__(self, latent_dim, out_channels):
         super().__init__()
 
@@ -239,7 +245,7 @@ def trainEncoderMNIST(encoder, decoder, epochs, dl_train, dl_val, device):
         decoder.train()
 
 
-class Classifier(nn.Module):
+class ClassifierMNIST(nn.Module):
     def __init__(self, latent_dim=128):
         super(ClassifierMNIST, self).__init__()
         # A simple fully connected layer to classify
@@ -489,10 +495,10 @@ class NTXentLoss(nn.Module):
 def trainEncoderMNIST123(model, epochs, dl_train, device):
     print("trainEncoder123")
     # Optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 
     # Loss function
-    criterion = NTXentLoss(temperature=0.5)
+    criterion = NTXentLoss(temperature=0.1)
 
     # Training loop
     for epoch in range(epochs):
