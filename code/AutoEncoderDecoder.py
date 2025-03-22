@@ -62,7 +62,6 @@ class ClassifierCIFAR(torch.nn.Module):
     def __init__(self, latent_dim, num_classes):
         super(ClassifierCIFAR, self).__init__()
 
-        # Define the layers
         self.fc1 = torch.nn.Linear(latent_dim, 512)
         self.relu1 = torch.nn.ReLU()
         self.bn1 = torch.nn.BatchNorm1d(512)  
@@ -92,11 +91,10 @@ def plot_reconstruction(original, reconstructed, num_images=5):
     original = original.cpu().detach().numpy()
     reconstructed = reconstructed.cpu().detach().numpy()
     
-    # Rescale images to [0, 1] range for visualization
     original = rescale_image(original)
     reconstructed = rescale_image(reconstructed)
     num_images = min(num_images, original.shape[0])  # Ensure we don't exceed batch size
-    fig, axes = plt.subplots(2, num_images, figsize=(num_images * 2, 4))
+    fig, axes = plt.subplots(num_images, 2, figsize=(10, 20))
 
     for i in range(num_images):
         ax = axes[0, i]
@@ -134,19 +132,18 @@ class EncoderMnist(nn.Module):
 
         self.flattened_size = in_channels * 28 * 28  # MNIST images are 28x28
         
-        # Increase the hidden layer sizes to improve the model's capacity
         self.fc_layers = nn.Sequential(
-            nn.Linear(self.flattened_size, 2048),  # Increased size
+            nn.Linear(self.flattened_size, 2048),
             nn.ReLU(),
-            nn.Linear(2048, 1024),  # Increased size
+            nn.Linear(2048, 1024),
             nn.ReLU(),
-            nn.Linear(1024, 512),  # Keep this size for intermediate processing
+            nn.Linear(1024, 512),
             nn.ReLU(),
-            nn.Linear(512, latent_dim)  # Latent space remains the same
+            nn.Linear(512, latent_dim)
         )
 
     def forward(self, x):
-        x = x.view(x.shape[0], -1)  # Flatten the input
+        x = x.view(x.shape[0], -1)
         x = self.fc_layers(x)
         return x
 
@@ -157,21 +154,20 @@ class DecoderMnist(nn.Module):
 
         self.out_channels = out_channels
 
-        # Increase the hidden layer sizes to match the encoder complexity
         self.fc_layers = nn.Sequential(
-            nn.Linear(latent_dim, 512),  # Latent to intermediate size
+            nn.Linear(latent_dim, 512),
             nn.ReLU(),
-            nn.Linear(512, 1024),  # Increased size
+            nn.Linear(512, 1024),
             nn.ReLU(),
-            nn.Linear(1024, 2048),  # Increased size
+            nn.Linear(1024, 2048),
             nn.ReLU(),
-            nn.Linear(2048, out_channels * 28 * 28),  # Output image size (28x28x1 or 28x28x3)
+            nn.Linear(2048, out_channels * 28 * 28),
             nn.Tanh()
         )
 
     def forward(self, h):
         x = self.fc_layers(h)
-        x = x.view(-1, self.out_channels, 28, 28)  # Reshape to the image shape
+        x = x.view(-1, self.out_channels, 28, 28)
         return x
 
 def reconstruction_loss(x, x_rec):
@@ -179,31 +175,30 @@ def reconstruction_loss(x, x_rec):
 
 def trainEncoderMNIST(encoder, decoder, epochs, dl_train, dl_val, device):
     print("Train Encoder")
-    # Optimizer
     optimizer = torch.optim.Adam(list(encoder.parameters()) + list(decoder.parameters()), lr=0.0001)
     
     for epoch in range(epochs):
         total_train_loss = 0.0
         num_train_samples = 0
 
-        encoder.train()  # Set encoder to training mode
-        decoder.train()  # Set decoder to training mode
+        encoder.train()
+        decoder.train()
 
         # Iterate over training data
         for images, _ in dl_train:
-            images = images.to(device)  # Move to GPU if available
+            images = images.to(device)
             batch_size = images.size(0)
 
-            optimizer.zero_grad()  # Zero the gradients
+            optimizer.zero_grad()
 
-            # Forward pass: Encode and then Decode
+            # Forward pass
             encoded = encoder(images)
             decoded = decoder(encoded)
 
             # Calculate the reconstruction loss
-            loss = reconstruction_loss(images, decoded)  # MSE loss between reconstructed and original images
+            loss = reconstruction_loss(images, decoded)
             total_train_loss += loss.item()
-            num_train_samples += batch_size  # Count number of samples in this batch
+            num_train_samples += batch_size
 
             # Backpropagation
             loss.backward()
@@ -213,29 +208,25 @@ def trainEncoderMNIST(encoder, decoder, epochs, dl_train, dl_val, device):
         avg_train_loss = total_train_loss / num_train_samples
 
         # Validation phase (no gradients needed)
-        encoder.eval()  # Set encoder to evaluation mode
-        decoder.eval()  # Set decoder to evaluation mode
+        encoder.eval()
+        decoder.eval()
 
         total_val_loss = 0.0
         num_val_samples = 0
 
-        with torch.no_grad():  # Disable gradient computation
+        with torch.no_grad():
             for images, _ in dl_val:
                 images = images.to(device)
 
-                # Forward pass: Encode and then Decode
                 encoded = encoder(images)
                 decoded = decoder(encoded)
 
-                # Calculate the reconstruction loss for validation
                 loss = reconstruction_loss(images, decoded)
                 total_val_loss += loss.item()
-                num_val_samples += images.size(0)  # Count number of samples in this batch
+                num_val_samples += images.size(0)
 
-        # Calculate average validation loss for this epoch
         avg_val_loss = total_val_loss / num_val_samples
 
-        # Print stats for this epoch
         print(f"Epoch [{epoch+1}/{epochs}], "
               f"Train Loss: {avg_train_loss:.4f}, "
               f"Validation Loss: {avg_val_loss:.4f}")
@@ -260,16 +251,16 @@ def trainClassifierMNIST(encoder, classifier, epochs, dl_train, dl_val, device):
     optimizer = torch.optim.Adam(classifier.parameters(), lr=1e-3)
 
     for epoch in range(epochs):
-        classifier.train()  # Set classifier to training mode
+        classifier.train()
         classifier.train()
         running_loss = 0.0
         correct = 0
         total = 0
         
         for images, labels in dl_train:
-            images = images.to(device)  # Move to GPU if available
-            labels = labels.to(device)  # Move labels to GPU
-            with torch.no_grad():  # Don't compute gradients for encoder
+            images = images.to(device)
+            labels = labels.to(device)
+            with torch.no_grad():
                 latent_vectors = encoder(images)
             
             outputs = classifier(latent_vectors)
@@ -286,15 +277,15 @@ def trainClassifierMNIST(encoder, classifier, epochs, dl_train, dl_val, device):
             correct += (predicted == labels).sum().item()
         
         # Validation phase (no gradients needed)
-        classifier.eval()  # Set classifier to evaluation mode
+        classifier.eval()
         val_loss = 0.0
         val_correct = 0
         val_total = 0
         
-        with torch.no_grad():  # No gradient computation during validation
+        with torch.no_grad():
             for images, labels in dl_val:
-                images = images.to(device)  # Move to GPU if available
-                labels = labels.to(device)  # Move labels to GPU
+                images = images.to(device)
+                labels = labels.to(device)
                 latent_vectors = encoder(images)
                 outputs = classifier(latent_vectors)
                 loss = criterion(outputs, labels)
@@ -304,7 +295,6 @@ def trainClassifierMNIST(encoder, classifier, epochs, dl_train, dl_val, device):
                 val_total += labels.size(0)
                 val_correct += (predicted == labels).sum().item()
 
-        # Print training and validation stats
         print(f"Epoch [{epoch+1}/{epochs}], "
             f"Train Loss: {running_loss/len(dl_train):.4f}, "
             f"Train Accuracy: {100 * correct/total:.2f}%, "
@@ -323,7 +313,7 @@ def evaluateClassifierMNIST(encoder, classifier, dl_test, device):
 
     with torch.no_grad():
         for images, labels in dl_test:
-            images = images.to(device)  # Move to GPU if available
+            images = images.to(device)
             latent_vectors = encoder(images)
             outputs = classifier(latent_vectors)
             loss = criterion(outputs, labels)
@@ -342,39 +332,39 @@ def evaluateClassifierMNIST(encoder, classifier, dl_test, device):
 class ClassifierMNIST122(nn.Module):
     def __init__(self, encoder, classifier):
         super(ClassifierMNIST122, self).__init__()
-        self.encoder = encoder  # Encoder (AutoEncoder part)
-        self.classifier = classifier  # Classifier (FC layer to classify the latent vector)
+        self.encoder = encoder
+        self.classifier = classifier
 
     def forward(self, x):
-        latent_vector = self.encoder(x)  # Pass input through the encoder
-        output = self.classifier(latent_vector)  # Classify based on the latent vector
+        latent_vector = self.encoder(x)
+        output = self.classifier(latent_vector)
         return output
 
 def trainClassifierMNIST122(model, epochs, dl_train, dl_val, device):
     print("Train Encoder + Classifier")
-    criterion = nn.CrossEntropyLoss()  # Cross-entropy loss for classification
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)  # Adam optimizer for both encoder and classifier
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
     for epoch in range(epochs):
-        model.train()  # Set model to training mode
+        model.train()
         running_loss = 0.0
         correct = 0
         total = 0
         
         for images, labels in dl_train:
-            images = images.to(device)  # Move to GPU if available
-            labels = labels.to(device)  # Move labels to GPU
+            images = images.to(device)
+            labels = labels.to(device)
 
-            # Forward pass: Get classification output
-            outputs = model(images)  # This uses the encoder and classifier
+            # Forward pass
+            outputs = model(images)
 
             # Compute loss
             loss = criterion(outputs, labels)
 
             # Backpropagation and optimization
-            optimizer.zero_grad()  # Zero the gradients
-            loss.backward()  # Backpropagate the loss
-            optimizer.step()  # Update the weights
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
             # Update statistics
             running_loss += loss.item()
@@ -383,17 +373,17 @@ def trainClassifierMNIST122(model, epochs, dl_train, dl_val, device):
             correct += (predicted == labels).sum().item()
 
         # Validation phase (no gradients needed)
-        model.eval()  # Set model to evaluation mode
+        model.eval()
         val_loss = 0.0
         val_correct = 0
         val_total = 0
         
         with torch.no_grad():
             for images, labels in dl_val:
-                images = images.to(device)  # Move to GPU if available
-                labels = labels.to(device)  # Move labels to GPU
+                images = images.to(device)
+                labels = labels.to(device)
                 
-                outputs = model(images)  # Get classification output from model
+                outputs = model(images)
                 loss = criterion(outputs, labels)
                 val_loss += loss.item()
 
@@ -401,7 +391,6 @@ def trainClassifierMNIST122(model, epochs, dl_train, dl_val, device):
                 val_total += labels.size(0)
                 val_correct += (predicted == labels).sum().item()
 
-        # Print training and validation stats
         print(f"Epoch [{epoch+1}/{epochs}], "
               f"Train Loss: {running_loss/len(dl_train):.4f}, "
               f"Train Accuracy: {100 * correct/total:.2f}%, "
@@ -410,19 +399,19 @@ def trainClassifierMNIST122(model, epochs, dl_train, dl_val, device):
 
 
 def evaluateClassifierMNIST122(model, dl_test, device):
-    model.eval()  # Set model to evaluation mode
-    criterion = nn.CrossEntropyLoss()  # Cross-entropy loss for classification
+    model.eval()
+    criterion = nn.CrossEntropyLoss()
 
     total_test_loss = 0.0
     correct = 0
     total = 0
 
-    with torch.no_grad():  # Disable gradient computation
+    with torch.no_grad():
         for images, labels in dl_test:
-            images = images.to(device)  # Move to GPU if available
-            labels = labels.to(device)  # Move labels to GPU
+            images = images.to(device)
+            labels = labels.to(device)
 
-            # Forward pass: Get classification output
+            # Forward pass
             outputs = model(images)
 
             # Calculate classification loss
@@ -483,22 +472,17 @@ class NTXentLoss(nn.Module):
 
 def trainEncoderMNIST123(model, epochs, dl_train, device):
     print("trainEncoder123")
-    # Optimizer
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
-    # Loss function
     criterion = NTXentLoss(temperature=0.2)
 
-    # Training loop
     for epoch in range(epochs):
         model.train()
         total_loss = 0.0
         for images, _ in dl_train:
             images = images.to(device)
 
-            # Create augmented views (e.g., flipping as augmentation)
             x_i = images
-            x_j = torch.flip(x_i, dims=[3])  # Example: flip as another augmentation
+            x_j = torch.flip(x_i, dims=[3])
 
             # Forward pass
             z_i = model(x_i)
@@ -517,8 +501,8 @@ def trainEncoderMNIST123(model, epochs, dl_train, device):
     
 def train_encoder_cifar(model, projection_head, epochs, dl_train, device):
     print("Training 1.2.3 contrastive encoder for CIFAR")
-    optimizer = torch.optim.Adam(list(model.parameters()) + list(projection_head.parameters()), lr=0.001)
-    criterion = NTXentLoss(temperature=0.2)
+    optimizer = torch.optim.Adam(list(model.parameters()) + list(projection_head.parameters()), lr=1e-3)
+    criterion = NTXentLoss(temperature=0.5)
     # Training loop
     for epoch in range(epochs):
         model.train()
@@ -546,3 +530,35 @@ def train_encoder_cifar(model, projection_head, epochs, dl_train, device):
             total_loss += loss.item()
 
         print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss / len(dl_train)}")
+
+def test_encoder_cifar(model, projection_head, dl_test, device):
+    print("Testing 1.2.3 contrastive encoder for CIFAR")
+    model.eval()  # Set the model to evaluation mode
+    projection_head.eval()  # Set the projection head to evaluation mode
+
+    total_loss = 0.0
+    correct = 0
+    total = 0
+
+    criterion = NTXentLoss(temperature=0.5)
+
+    with torch.no_grad():  # Disable gradient calculation
+        for images, _ in dl_test:
+            images = images.to(device)
+
+            # Create augmented views (positive pairs)
+            x_i = images
+            x_j = torch.flip(x_i, dims=[3])  # Flip as another augmentation
+
+            # Forward pass: encode images
+            z_i = model(x_i)
+            z_j = model(x_j)
+
+            # Compute contrastive loss
+            loss = criterion(z_i, z_j)
+
+            total_loss += loss.item()
+
+    # Calculate average loss and accuracy
+    avg_loss = total_loss / len(dl_test)
+    print(f"Test Loss: {avg_loss:.4f}")
