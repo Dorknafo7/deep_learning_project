@@ -93,16 +93,16 @@ def plot_reconstruction(original, reconstructed, num_images=5):
     
     original = rescale_image(original)
     reconstructed = rescale_image(reconstructed)
-    num_images = min(num_images, original.shape[0])
-    fig, axes = plt.subplots(num_images, 2, figsize=(10, 20))
+    num_images = min(num_images, original.shape[0])  # Ensure we don't exceed batch size
+    fig, axes = plt.subplots(num_images, 2, figsize=(num_images * 2, 4))
 
     for i in range(num_images):
-        ax = axes[i, 0]
+        ax = axes[0, i]
         ax.imshow(np.transpose(original[i], (1, 2, 0)))  # Reorder dimensions to (H, W, C)
         ax.set_title('Original')
         ax.axis('off')
 
-        ax = axes[i, 1]
+        ax = axes[1, i]
         ax.imshow(np.transpose(reconstructed[i], (1, 2, 0)))
         ax.set_title('Reconstructed')
         ax.axis('off')
@@ -502,6 +502,7 @@ def train_encoder_cifar(model, projection_head, epochs, dl_train, device):
     print("Training 1.2.3 contrastive encoder for CIFAR")
     optimizer = torch.optim.Adam(list(model.parameters()) + list(projection_head.parameters()), lr=1e-3)
     criterion = NTXentLoss(temperature=0.5)
+    # Training loop
     for epoch in range(epochs):
         model.train()
         projection_head.train()
@@ -531,8 +532,8 @@ def train_encoder_cifar(model, projection_head, epochs, dl_train, device):
 
 def test_encoder_cifar(model, projection_head, dl_test, device):
     print("Testing 1.2.3 contrastive encoder for CIFAR")
-    model.eval()
-    projection_head.eval()
+    model.eval()  # Set the model to evaluation mode
+    projection_head.eval()  # Set the projection head to evaluation mode
 
     total_loss = 0.0
     correct = 0
@@ -548,7 +549,7 @@ def test_encoder_cifar(model, projection_head, dl_test, device):
             x_i = images
             x_j = torch.flip(x_i, dims=[3])  # Flip as another augmentation
 
-            # Forward pass
+            # Forward pass: encode images
             z_i = model(x_i)
             z_j = model(x_j)
 
