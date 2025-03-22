@@ -444,52 +444,51 @@ class ProjectionHead(nn.Module):
         x = torch.relu(self.fc1(x))
         return self.fc2(x)
 
-
-class NTXentLoss(nn.Module):
-    def __init__(self, temperature=0.5):
-        super(NTXentLoss, self).__init__()
+class SupConLoss(nn.Module):
+    def __init__(self, temperature=0.1):
+        super(SupConLoss, self).__init__()
         self.temperature = temperature
-    
-    def forward(self, z_i, z_j):
-        z_i = F.normalize(z_i, dim=-1, p=2)
-        z_j = F.normalize(z_j, dim=-1, p=2)
 
-        representations = torch.cat([z_i, z_j], dim=0)
-        similarity_matrix = torch.matmul(representations, representations.T)
-        batch_size = z_i.size(0)
-        mask = torch.eye(batch_size * 2, dtype=torch.bool).to(z_i.device)
-        similarity_matrix = similarity_matrix.masked_fill(mask, -10.0)
-        similarity_matrix /= self.temperature
+    def forward(self, features, labels):
+        """
+        features: Tensor of shape (batch_size, feature_dim)
+        labels: Tensor of shape (batch_size)
+        """
+        features = F.normalize(features, dim=-1, p=2)
+        batch_size = features.shape[0]
+
+        similarity_matrix = torch.exp(torch.mm(features, features.T) / self.temperature)
+
+        labels = labels.contiguous().view(-1, 1)
+        mask = torch.eq(labels, labels.T).float().to(features.device)
+
+        mask.fill_diagonal_(0)
 
         # Compute contrastive loss
-        labels = torch.arange(batch_size).to(z_i.device)
-        labels = torch.cat([labels, labels], dim=0)
+        pos_sim = (similarity_matrix * mask).sum(dim=1)
+        neg_sim = similarity_matrix.sum(dim=1)
 
-        loss = F.cross_entropy(similarity_matrix, labels)
-
+        loss = -torch.log(pos_sim / neg_sim).mean()
         return loss
 
-
 def trainEncoderMNIST123(model, epochs, dl_train, device):
-    print("trainEncoder123")
+    print("Training Encoder with SupConLoss")
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    criterion = NTXentLoss(temperature=0.2)
+    criterion = SupConLoss(temperature=0.1)
 
     for epoch in range(epochs):
         model.train()
         total_loss = 0.0
-        for images, _ in dl_train:
-            images = images.to(device)
 
-            x_i = images
-            x_j = torch.flip(x_i, dims=[3])
+        for images, labels in dl_train:
+            images = images.to(device)
+            labels = labels.to(device)
 
             # Forward pass
-            z_i = model(x_i)
-            z_j = model(x_j)
+            features = model(images)
 
-            # Compute contrastive loss
-            loss = criterion(z_i, z_j)
+            # Compute supervised contrastive loss
+            loss = criterion(features, labels)
 
             optimizer.zero_grad()
             loss.backward()
