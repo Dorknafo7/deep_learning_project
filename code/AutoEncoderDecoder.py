@@ -462,43 +462,32 @@ class NTXentLoss(nn.Module):
         self.temperature = temperature
     
     def forward(self, z_i, z_j):
-        # Normalize the embeddings
         z_i = F.normalize(z_i, dim=-1, p=2)
         z_j = F.normalize(z_j, dim=-1, p=2)
-        
-        # Concatenate both views
+
         representations = torch.cat([z_i, z_j], dim=0)
-        
-        # Similarity matrix
         similarity_matrix = torch.matmul(representations, representations.T)
-        
-        # Mask out the diagonal (same image pairs)
         batch_size = z_i.size(0)
-        #debug:
-        if batch_size < 2:
-            raise ValueError("Batch size must be at least 2 for contrastive loss.")
-        
-        mask = torch.eye(batch_size * 2).bool().to(z_i.device)
-        similarity_matrix = similarity_matrix.masked_fill(mask, -float('inf'))
-        
-        # Apply temperature scaling
+        mask = torch.eye(batch_size * 2, dtype=torch.bool).to(z_i.device)
+        similarity_matrix = similarity_matrix.masked_fill(mask, -10.0)
         similarity_matrix /= self.temperature
-        
-        # Compute the contrastive loss
-        labels = torch.cat([torch.arange(batch_size).to(z_i.device), 
-                            torch.arange(batch_size).to(z_i.device)], dim=0)
-        
+
+        # Compute contrastive loss
+        labels = torch.arange(batch_size).to(z_i.device)
+        labels = torch.cat([labels, labels], dim=0)
+
         loss = F.cross_entropy(similarity_matrix, labels)
+
         return loss
 
 
 def trainEncoderMNIST123(model, epochs, dl_train, device):
     print("trainEncoder123")
     # Optimizer
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
     # Loss function
-    criterion = NTXentLoss(temperature=0.1)
+    criterion = NTXentLoss(temperature=0.2)
 
     # Training loop
     for epoch in range(epochs):
@@ -517,7 +506,7 @@ def trainEncoderMNIST123(model, epochs, dl_train, device):
 
             # Compute contrastive loss
             loss = criterion(z_i, z_j)
-            
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
