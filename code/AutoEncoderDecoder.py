@@ -94,7 +94,7 @@ def plot_reconstruction(original, reconstructed, num_images=5):
     original = rescale_image(original)
     reconstructed = rescale_image(reconstructed)
     num_images = min(num_images, original.shape[0])  # Ensure we don't exceed batch size
-    fig, axes = plt.subplots(num_images, 2, figsize=(10, 20))
+    fig, axes = plt.subplots(num_images, 2, figsize=(num_images * 2, 4))
 
     for i in range(num_images):
         ax = axes[0, i]
