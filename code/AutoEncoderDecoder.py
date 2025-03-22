@@ -501,7 +501,7 @@ def trainEncoderMNIST123(model, epochs, dl_train, device):
 def train_encoder_cifar(model, projection_head, epochs, dl_train, device):
     print("Training 1.2.3 contrastive encoder for CIFAR")
     optimizer = torch.optim.Adam(list(model.parameters()) + list(projection_head.parameters()), lr=1e-3)
-    criterion = NTXentLoss(temperature=0.5)
+    criterion = SupConLoss(temperature=0.5)
     # Training loop
     for epoch in range(epochs):
         model.train()
@@ -529,35 +529,3 @@ def train_encoder_cifar(model, projection_head, epochs, dl_train, device):
             total_loss += loss.item()
 
         print(f"Epoch {epoch+1}/{epochs}, Loss: {total_loss / len(dl_train)}")
-
-def test_encoder_cifar(model, projection_head, dl_test, device):
-    print("Testing 1.2.3 contrastive encoder for CIFAR")
-    model.eval()  # Set the model to evaluation mode
-    projection_head.eval()  # Set the projection head to evaluation mode
-
-    total_loss = 0.0
-    correct = 0
-    total = 0
-
-    criterion = NTXentLoss(temperature=0.5)
-
-    with torch.no_grad():  # Disable gradient calculation
-        for images, _ in dl_test:
-            images = images.to(device)
-
-            # Create augmented views (positive pairs)
-            x_i = images
-            x_j = torch.flip(x_i, dims=[3])  # Flip as another augmentation
-
-            # Forward pass: encode images
-            z_i = model(x_i)
-            z_j = model(x_j)
-
-            # Compute contrastive loss
-            loss = criterion(z_i, z_j)
-
-            total_loss += loss.item()
-
-    # Calculate average loss and accuracy
-    avg_loss = total_loss / len(dl_test)
-    print(f"Test Loss: {avg_loss:.4f}")
